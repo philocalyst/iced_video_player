@@ -1,3 +1,4 @@
+use iced::Padding;
 use iced::widget::MouseArea;
 use iced::{
     Background, Border, Color, Element, Event, Length, event, keyboard, mouse,
@@ -89,7 +90,7 @@ impl App {
                 }
 
                 // Auto-hide controls after 3 seconds of inactivity
-                if self.last_interaction.elapsed() > Duration::from_secs(3) && !self.dragging {
+                if self.last_interaction.elapsed() > Duration::from_secs(1) && !self.dragging {
                     self.controls_visible = false;
                 }
             }
@@ -115,8 +116,6 @@ impl App {
             .on_end_of_stream(Message::EndOfStream)
             .on_new_frame(Message::NewFrame);
 
-        let controls_opacity = if self.controls_visible { 1.0 } else { 0.0 };
-
         let slider = Container::new(
             Slider::new(
                 0.0..=self.video.duration().as_secs_f64(),
@@ -126,14 +125,9 @@ impl App {
             .step(0.1)
             .on_release(Message::SeekRelease),
         )
-        .padding(iced::Padding::new(8.0).left(20.0).right(20.0))
+        .padding(Padding::new(8.0).left(20.0).right(20.0))
         .style(move |_theme| container::Style {
-            background: Some(Background::Color(Color::from_rgba(
-                0.0,
-                0.0,
-                0.0,
-                0.7 * controls_opacity,
-            ))),
+            background: Some(Background::Color(Color::from_rgba(0.0, 0.0, 0.0, 0.7))),
             border: Border {
                 radius: 8.0.into(),
                 ..Default::default()
@@ -152,7 +146,7 @@ impl App {
                     },
                     ..Default::default()
                 })
-                .padding(iced::Padding::new(10.0).left(20.0).right(20.0))
+                .padding(Padding::new(10.0).left(20.0).right(20.0))
                 .on_press(Message::TogglePause);
 
         let loop_button = Button::new(
@@ -172,7 +166,7 @@ impl App {
             },
             ..Default::default()
         })
-        .padding(iced::Padding::new(10.0).left(20.0).right(20.0))
+        .padding(Padding::new(10.0).left(20.0).right(20.0))
         .on_press(Message::ToggleLoop);
 
         let time_display = Text::new(format!(
@@ -197,19 +191,14 @@ impl App {
                 ),
         )
         .style(move |_theme| container::Style {
-            background: Some(Background::Color(Color::from_rgba(
-                0.05,
-                0.05,
-                0.08,
-                0.9 * controls_opacity,
-            ))),
+            background: Some(Background::Color(Color::from_rgba(0.05, 0.05, 0.08, 0.9))),
             border: Border {
                 radius: 10.0.into(),
                 ..Default::default()
             },
             ..Default::default()
         })
-        .padding(iced::Padding::new(14.0).left(20.0).right(20.0));
+        .padding(Padding::new(14.0).left(20.0).right(20.0));
 
         let controls_overlay = Container::new(
             Column::new()
@@ -220,7 +209,14 @@ impl App {
         )
         .align_bottom(Length::Fill);
 
-        MouseArea::new(Stack::new().push(video_player).push(controls_overlay))
+        let mut content = Stack::new().push(video_player);
+
+        // Remove the controls from the tree when not visible
+        if self.controls_visible {
+            content = content.push(controls_overlay);
+        }
+
+        MouseArea::new(content)
             .on_move(|_| {
                 Message::EventOccurred(Event::Mouse(mouse::Event::CursorMoved {
                     position: iced::Point::ORIGIN,
