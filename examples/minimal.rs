@@ -213,14 +213,12 @@ impl App {
 
         let controls_overlay = Container::new(
             Column::new()
-                .push(Container::new(Text::new("")).height(Length::Fill))
                 .push(slider)
                 .push(controls)
                 .spacing(8)
                 .padding(20),
         )
-        .width(Length::Fill)
-        .height(Length::Fill);
+        .align_bottom(Length::Fill);
 
         MouseArea::new(Stack::new().push(video_player).push(controls_overlay))
             .on_move(|_| {
