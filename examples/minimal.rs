@@ -1,14 +1,19 @@
-use iced::Padding;
 use iced::widget::MouseArea;
 use iced::{
     Background, Border, Color, Element, Event, Length, event, keyboard, mouse,
     widget::{Button, Column, Container, Row, Slider, Stack, Text, button, container, mouse_area},
 };
+use iced::{Padding, Task};
 use iced_video_player::{Video, VideoPlayer};
 use std::time::{Duration, Instant};
 
 fn main() -> iced::Result {
-    iced::run(App::update, App::view)
+    iced::application(|| (App::default(), Task::none()), App::update, App::view)
+        .window(iced::window::Settings {
+            decorations: false,
+            ..Default::default()
+        })
+        .run()
 }
 
 #[derive(Clone, Debug)]
