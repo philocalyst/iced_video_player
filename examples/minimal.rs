@@ -216,12 +216,15 @@ impl App {
             content = content.push(controls_overlay);
         }
 
-        MouseArea::new(content)
-            .on_move(|_| {
-                Message::EventOccurred(Event::Mouse(mouse::Event::CursorMoved {
-                    position: iced::Point::ORIGIN,
-                }))
-            })
-            .into()
+        Container::new(MouseArea::new(content).on_move(|_| {
+            Message::EventOccurred(Event::Mouse(mouse::Event::CursorMoved {
+                position: iced::Point::ORIGIN,
+            }))
+        }))
+        .style(|_theme| container::Style {
+            background: Some(Background::Color(Color::from_rgb(0.02, 0.02, 0.02))),
+            ..Default::default()
+        })
+        .into()
     }
 }
