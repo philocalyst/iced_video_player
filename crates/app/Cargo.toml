@@ -1,0 +1,10 @@
+[package]
+name = "iced-video-app"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+iced_video_player = { path = "../player_widget" }
+iced.workspace = true
+url.workspace = true

@@ -1,0 +1,8 @@
+[package]
+name = "iced-video-shaders"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+wgsl-rs = { git = "https://github.com/schell/wgsl-rs", default-features = false }
+wgpu = { version = "27", default-features = false }

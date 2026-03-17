@@ -1,7 +1,7 @@
 use iced::widget::MouseArea;
 use iced::{
-    Background, Border, Color, Element, Event, Length, event, keyboard, mouse,
-    widget::{Button, Column, Container, Row, Slider, Stack, Text, button, container, mouse_area},
+    Background, Border, Color, Element, Event, Length, mouse,
+    widget::{Button, Column, Container, Row, Slider, Stack, Text, button, container},
 };
 use iced::{Padding, Task};
 use iced_video_player::{Video, VideoPlayer};
@@ -40,9 +40,7 @@ impl Default for App {
         App {
             video: Video::new(
                 &url::Url::from_file_path(
-                    std::path::PathBuf::from(file!())
-                        .parent()
-                        .unwrap()
+                    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                         .join("../.media/test.mp4")
                         .canonicalize()
                         .unwrap(),
