@@ -5,6 +5,7 @@ pub mod position;
 pub use frame::Frame;
 pub use internal::Internal;
 pub use position::Position;
+use tracing::info;
 
 use crate::Error;
 use frame::yuv_to_rgba;
@@ -47,6 +48,7 @@ impl Video {
     /// Create a new video player from a given video which loads from `uri`.
     /// Note that live sources will report the duration to be zero.
     pub fn new(uri: &url::Url) -> Result<Self, Error> {
+        info!("Began creating video widget");
         gst::init()?;
 
         let pipeline = format!(
@@ -111,12 +113,14 @@ impl Video {
 
         // extract resolution and framerate
         // TODO(jazzfool): maybe we want to extract some other information too?
+        info!("Begun resolution extraction");
         let caps = cleanup!(pad.current_caps().ok_or(Error::Caps))?;
         let s = cleanup!(caps.structure(0).ok_or(Error::Caps))?;
         let width = cleanup!(s.get::<i32>("width").map_err(|_| Error::Caps))?;
         let height = cleanup!(s.get::<i32>("height").map_err(|_| Error::Caps))?;
         let framerate = cleanup!(s.get::<gst::Fraction>("framerate").map_err(|_| Error::Caps))?;
         let framerate = framerate.numer() as f64 / framerate.denom() as f64;
+        info!("Ended resolution extraction");
 
         if framerate.is_nan()
             || framerate.is_infinite()
