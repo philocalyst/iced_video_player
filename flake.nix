@@ -130,23 +130,26 @@
             inherit name help category;
             command = "cd $PRJ_ROOT && nu .config/scripts/${name}.nu \"$@\"";
           };
-					libpath = pkgs.lib.makeLibraryPath (with pkgs; [
-						wayland
-						glib
-						gst_all_1.gstreamer
-            gst_all_1.gst-plugins-base
-            gst_all_1.gst-plugins-good
-            gst_all_1.gst-plugins-bad
-						libxkbcommon
-					]);
+          libpath = pkgs.lib.makeLibraryPath (
+            with pkgs;
+            [
+              wayland
+              glib
+              gst_all_1.gstreamer
+              gst_all_1.gst-plugins-base
+              gst_all_1.gst-plugins-good
+              gst_all_1.gst-plugins-bad
+              libxkbcommon
+            ]
+          );
         in
         {
           default = pkgs.mkShell {
-						env.RUSTFLAGS = "-C link-arg=-Wl,-rpath,${libpath}";
+            env.RUSTFLAGS = "-C link-arg=-Wl,-rpath,${libpath}";
             packages = with pkgs; [
               rust-nightly # Rust nightly toolchain
               pkg-config # Nicer pkg-config
-							gcc
+              gcc
 
               # GSTRREAMER STUFF
               glib
