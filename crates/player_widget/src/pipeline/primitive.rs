@@ -2,7 +2,7 @@ use crate::pipeline::render::VideoPipeline;
 use crate::video::Frame;
 use iced_wgpu::primitive::Primitive;
 use iced_wgpu::wgpu;
-use std::sync::{atomic::AtomicBool, Arc, Mutex};
+use std::sync::{Arc, Mutex, atomic::AtomicBool};
 
 #[derive(Debug, Clone)]
 pub(crate) struct VideoPrimitive {
