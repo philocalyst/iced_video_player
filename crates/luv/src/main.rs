@@ -1,7 +1,6 @@
 mod types;
 
 use iced::Task;
-use tracing::info;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
 use types::app::App;
 

@@ -147,6 +147,10 @@
                 value = "${pkgs.glib.dev}/lib/pkgconfig:${pkgs.gst_all_1.gstreamer.dev}/lib/pkgconfig:${pkgs.gst_all_1.gst-plugins-base.dev}/lib/pkgconfig";
               }
               {
+                name = "GST_PLUGIN_SYSTEM_PATH_1_0";
+                value = "${pkgs.gst_all_1.gstreamer.out}/lib/gstreamer-1.0:${pkgs.gst_all_1.gst-plugins-base}/lib/gstreamer-1.0:${pkgs.gst_all_1.gst-plugins-good}/lib/gstreamer-1.0";
+              }
+              {
                 name = "DYLD_LIBRARY_PATH";
                 value = "${pkgs.glib}/lib:${pkgs.gst_all_1.gstreamer}/lib:${pkgs.gst_all_1.gst-plugins-base}/lib";
               }
@@ -162,9 +166,12 @@
               # GSTRREAMER STUFF
               pkgs.glib
               pkgs.gst_all_1.gstreamer
+              pkgs.gst_all_1.gstreamer.dev
               pkgs.gst_all_1.gst-plugins-base
               pkgs.gst_all_1.gst-plugins-good
               pkgs.gst_all_1.gst-plugins-bad
+              pkgs.gst_all_1.gst-plugins-ugly
+              pkgs.gst_all_1.gst-libav
 
               pkgs.cargo-bump # Bump crate versions
               pkgs.kittysay # say? kitty
