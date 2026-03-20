@@ -7,9 +7,7 @@ readme = "README.md"
 keywords = ["gui", "iced", "video"]
 categories = ["gui", "multimedia"]
 version = "0.6.0"
-authors = ["jazzfool"]
 edition = "2024"
-resolver = "2"
 license = "MIT OR Apache-2.0"
 exclude = [
     ".media/test.mp4"
