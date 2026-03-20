@@ -34,12 +34,13 @@ impl Drop for Video {
 
         inner.alive.store(false, Ordering::SeqCst);
         if let Some(worker) = inner.worker.take()
-            && let Err(err) = worker.join() {
-                match err.downcast_ref::<String>() {
-                    Some(e) => log::error!("Video thread panicked: {e}"),
-                    None => log::error!("Video thread panicked with unknown reason"),
-                }
+            && let Err(err) = worker.join()
+        {
+            match err.downcast_ref::<String>() {
+                Some(e) => log::error!("Video thread panicked: {e}"),
+                None => log::error!("Video thread panicked with unknown reason"),
             }
+        }
     }
 }
 
@@ -190,13 +191,14 @@ impl Video {
                     upload_frame_ref.swap(true, Ordering::SeqCst);
 
                     if let Some(at) = clear_subtitles_at
-                        && frame_pts >= at {
-                            *subtitle_text_ref
-                                .lock()
-                                .map_err(|_| gst::FlowError::Error)? = None;
-                            upload_text_ref.store(true, Ordering::SeqCst);
-                            clear_subtitles_at = None;
-                        }
+                        && frame_pts >= at
+                    {
+                        *subtitle_text_ref
+                            .lock()
+                            .map_err(|_| gst::FlowError::Error)? = None;
+                        upload_text_ref.store(true, Ordering::SeqCst);
+                        clear_subtitles_at = None;
+                    }
 
                     let text = text_sink
                         .as_ref()

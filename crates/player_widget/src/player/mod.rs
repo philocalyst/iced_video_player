@@ -274,15 +274,17 @@ where
                 }
 
                 if inner.upload_frame.load(Ordering::SeqCst)
-                    && let Some(on_new_frame) = self.on_new_frame.clone() {
-                        shell.publish(on_new_frame);
-                    }
+                    && let Some(on_new_frame) = self.on_new_frame.clone()
+                {
+                    shell.publish(on_new_frame);
+                }
 
                 if let Some(on_subtitle_text) = &self.on_subtitle_text
                     && inner.upload_text.swap(false, Ordering::SeqCst)
-                        && let Ok(text) = inner.subtitle_text.try_lock() {
-                            shell.publish(on_subtitle_text(text.clone()));
-                        }
+                    && let Ok(text) = inner.subtitle_text.try_lock()
+                {
+                    shell.publish(on_subtitle_text(text.clone()));
+                }
 
                 shell.request_redraw();
             } else {
