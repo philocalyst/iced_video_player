@@ -167,6 +167,7 @@
               pkgs.gst_all_1.gst-plugins-bad
 
               pkgs.cargo-bump # Bump crate versions
+              pkgs.kittysay # say? kitty
               pkgs.rust-analyzer # Rust LSP server
               pkgs.flock # For managing shell concurrency
               pkgs.nixfmt # Nix formatter
