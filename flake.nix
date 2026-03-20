@@ -157,12 +157,15 @@
 
             packages = builtins.filter (x: x != null) [
               rust-nightly # Rust nightly toolchain
+              pkgs.u-config # Nicer pkg-config
+
+              # GSTRREAMER STUFF
               pkgs.glib
-              pkgs.u-config
               pkgs.gst_all_1.gstreamer
               pkgs.gst_all_1.gst-plugins-base
               pkgs.gst_all_1.gst-plugins-good
               pkgs.gst_all_1.gst-plugins-bad
+
               pkgs.cargo-bump # Bump crate versions
               pkgs.rust-analyzer # Rust LSP server
               pkgs.flock # For managing shell concurrency
