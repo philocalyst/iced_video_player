@@ -141,14 +141,24 @@
           default = (devshell.legacyPackages.${system}.mkShell) {
             name = "NuNuShell";
 
+            env = [
+              {
+                name = "PKG_CONFIG_PATH";
+                value = "${pkgs.glib.dev}/lib/pkgconfig:${pkgs.gst_all_1.gstreamer.dev}/lib/pkgconfig:${pkgs.gst_all_1.gst-plugins-base.dev}/lib/pkgconfig";
+              }
+              {
+                name = "DYLD_LIBRARY_PATH";
+                value = "${pkgs.glib}/lib:${pkgs.gst_all_1.gstreamer}/lib:${pkgs.gst_all_1.gst-plugins-base}/lib";
+              }
+            ];
             motd = ''
               $($(type -p kittysay) --think "hello... james..." | dotacat)
             '';
 
             packages = builtins.filter (x: x != null) [
               rust-nightly # Rust nightly toolchain
-              pkgs.git # Version control
               pkgs.glib
+              pkgs.u-config
               pkgs.gst_all_1.gstreamer
               pkgs.gst_all_1.gst-plugins-base
               pkgs.gst_all_1.gst-plugins-good
@@ -160,19 +170,12 @@
               pkgs.tombi # TOML formatter/linter
               pkgs.typos # Source code spell checker
               pkgs.hongdown # Markdown formatting
-              pkgs.radicle-node # P2P code collaboration
-              pkgs.radicle-tui # Radicle terminal UI
-              pkgs.kittysay # Cat ASCII art
               pkgs.marksman # Markdown LSP server
               pkgs.taplo # TOML LSP/formatter
               pkgs.cargo-nextest # Next-gen test runner
-              pkgs.libiconv # Character encoding library, associated with linker error
-              pkgs.nil # Nix LSP server
-              pkgs.jsonfmt # JSON formatting
+              pkgs.nixd # Nix LSP server
               pkgs.dotacat # Colorful terminal output
-              pkgs.goreleaser
               pkgs.cuelsp
-              pkgs.b3sum
               (if pkgs.stdenv.isLinux then pkgs.wild-unwrapped else null) # Fast linker (RUST), only works with clang for now
               (if pkgs.stdenv.isLinux then pkgs.openssl else null) # Fast linker (RUST), only works with clang for now
               (if pkgs.stdenv.isLinux then pkgs.clang else null)

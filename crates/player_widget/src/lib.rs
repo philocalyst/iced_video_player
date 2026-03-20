@@ -35,15 +35,15 @@
 //! You can programmatically control the video (e.g., seek, pause, loop, grab thumbnails) by accessing various methods on [`Video`].
 
 pub mod pipeline;
+pub mod player;
 pub mod video;
-pub mod video_player;
 
 use gstreamer as gst;
 use thiserror::Error;
 
+pub use player::VideoPlayer;
 pub use video::Position;
 pub use video::Video;
-pub use video_player::VideoPlayer;
 
 #[derive(Debug, Error)]
 pub enum Error {
