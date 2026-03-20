@@ -150,10 +150,6 @@
                 name = "GST_PLUGIN_SYSTEM_PATH_1_0";
                 value = "${pkgs.gst_all_1.gstreamer.out}/lib/gstreamer-1.0:${pkgs.gst_all_1.gst-plugins-base}/lib/gstreamer-1.0:${pkgs.gst_all_1.gst-plugins-good}/lib/gstreamer-1.0";
               }
-              {
-                name = "DYLD_LIBRARY_PATH";
-                value = "${pkgs.glib}/lib:${pkgs.gst_all_1.gstreamer}/lib:${pkgs.gst_all_1.gst-plugins-base}/lib";
-              }
             ];
             motd = ''
               $($(type -p kittysay) --think "hello... james..." | dotacat)
