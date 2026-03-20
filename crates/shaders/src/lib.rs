@@ -69,6 +69,9 @@ pub mod nv12_shader {
         let sample_uv = input.uv;
 
         // BT.709 YUV to RGB conversion
+        // We consistently convert to RGB because WGPU manages the mapping of colors for us
+        // For future HDR, we'll need to turn off this behavior, and handle that mapping ourselves
+        // TODO: Use constants instead of magic numbers
         let y = (texture_sample(TEX_Y, S, sample_uv).x - 0.0625) / 0.8588;
         let u = (texture_sample(TEX_UV, S, sample_uv).x - 0.5) / 0.8784;
         let v = (texture_sample(TEX_UV, S, sample_uv).y - 0.5) / 0.8784;

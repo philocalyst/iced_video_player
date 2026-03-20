@@ -157,7 +157,7 @@
 
             packages = builtins.filter (x: x != null) [
               rust-nightly # Rust nightly toolchain
-              pkgs.u-config # Nicer pkg-config
+              pkgs.pkg-config # Nicer pkg-config
 
               # GSTRREAMER STUFF
               pkgs.glib
