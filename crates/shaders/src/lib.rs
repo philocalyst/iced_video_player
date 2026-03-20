@@ -71,7 +71,6 @@ pub mod nv12_shader {
         let u = (texture_sample(TEX_UV, S, sample_uv).x - 0.5) / 0.8784;
         let v = (texture_sample(TEX_UV, S, sample_uv).y - 0.5) / 0.8784;
 
-        // BT.709 coefficients applied via explicit arithmetic
         let r = max(0.0, min(1.0, y + 1.5748 * v));
         let g = max(0.0, min(1.0, y - 0.1873 * u - 0.4681 * v));
         let b = max(0.0, min(1.0, y + 1.8556 * u));

@@ -41,8 +41,8 @@ impl Program for App {
     fn view<'a>(
         &self,
         state: &'a Self::State,
-        window: Id,
+        _window: Id,
     ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer> {
-        state.view(window)
+        state.view()
     }
 }
