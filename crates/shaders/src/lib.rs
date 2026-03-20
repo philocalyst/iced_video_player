@@ -1,3 +1,5 @@
+#![allow(unused_assignments)] // It seems that for parsing, they rely on functions that fit the naming conventions
+
 use wgsl_rs::wgsl;
 
 #[wgsl]

@@ -2,7 +2,7 @@
 members = [
     "crates/player_widget",
     "crates/shaders",
-    "crates/app",
+    "crates/luv",
 ]
 resolver = "3"
 

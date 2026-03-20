@@ -1,8 +1,9 @@
-use iced::{
-    Element, Task, Theme, Renderer, window::{Id, Settings}, Program,
-};
 use crate::types::app::App;
 use crate::types::message::Message;
+use iced::{
+    window::{Id, Settings},
+    Element, Program, Renderer, Task, Theme,
+};
 
 impl Program for App {
     type State = App;
@@ -30,11 +31,7 @@ impl Program for App {
         (App::default(), Task::none())
     }
 
-    fn update(
-        &self,
-        state: &mut Self::State,
-        message: Self::Message,
-    ) -> Task<Self::Message> {
+    fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
         state.update(message)
     }
 

@@ -1,11 +1,10 @@
+use crate::types::message::Message;
 use iced::{
-    Background, Border, Color, Element, Event, Length, mouse,
-    widget::{Button, Column, Container, Row, Slider, Stack, Text, button, container, MouseArea},
-    Task, Padding, Theme, Renderer,
+    Background, Border, Color, Element, Event, Length, Padding, Renderer, Task, Theme, mouse,
+    widget::{Button, Column, Container, MouseArea, Row, Slider, Stack, Text, button, container},
 };
 use iced_video_player::{Video, VideoPlayer};
 use std::time::{Duration, Instant};
-use crate::types::message::Message;
 
 pub struct App {
     pub video: Video,
@@ -92,7 +91,7 @@ impl App {
         Task::none()
     }
 
-    pub fn view(&self) -> Element<Message, Theme, Renderer> {
+    pub fn view(&self) -> Element<'_, Message, Theme, Renderer> {
         let video_player = VideoPlayer::new(&self.video)
             .width(Length::Fill)
             .height(Length::Fill)
