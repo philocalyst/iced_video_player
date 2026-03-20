@@ -1,38 +1,37 @@
-use crate::video::Frame;
-use iced_wgpu::primitive::{Pipeline, Primitive};
+use iced_wgpu::primitive::Pipeline;
 use iced_wgpu::wgpu;
 use std::{
     collections::{btree_map::Entry, BTreeMap},
     num::NonZero,
     sync::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
-        Arc, Mutex,
+        Arc,
     },
 };
 
 #[repr(C)]
-struct Uniforms {
-    rect: [f32; 4],
+pub(crate) struct Uniforms {
+    pub(crate) rect: [f32; 4],
     // because wgpu min_uniform_buffer_offset_alignment
-    _pad: [u8; 240],
+    pub(crate) _pad: [u8; 240],
 }
 
-struct VideoEntry {
-    texture_y: wgpu::Texture,
-    texture_uv: wgpu::Texture,
-    instances: wgpu::Buffer,
-    bg0: wgpu::BindGroup,
-    alive: Arc<AtomicBool>,
+pub(crate) struct VideoEntry {
+    pub(crate) texture_y: wgpu::Texture,
+    pub(crate) texture_uv: wgpu::Texture,
+    pub(crate) instances: wgpu::Buffer,
+    pub(crate) bg0: wgpu::BindGroup,
+    pub(crate) alive: Arc<AtomicBool>,
 
-    prepare_index: AtomicUsize,
-    render_index: AtomicUsize,
+    pub(crate) prepare_index: AtomicUsize,
+    pub(crate) render_index: AtomicUsize,
 }
 
 pub(crate) struct VideoPipeline {
-    pipeline: wgpu::RenderPipeline,
-    bg0_layout: wgpu::BindGroupLayout,
-    sampler: wgpu::Sampler,
-    videos: BTreeMap<u64, VideoEntry>,
+    pub(crate) pipeline: wgpu::RenderPipeline,
+    pub(crate) bg0_layout: wgpu::BindGroupLayout,
+    pub(crate) sampler: wgpu::Sampler,
+    pub(crate) videos: BTreeMap<u64, VideoEntry>,
 }
 
 impl Pipeline for VideoPipeline {
@@ -160,7 +159,7 @@ impl Pipeline for VideoPipeline {
 }
 
 impl VideoPipeline {
-    fn upload(
+    pub(crate) fn upload(
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
@@ -320,7 +319,7 @@ impl VideoPipeline {
         );
     }
 
-    fn prepare(&mut self, queue: &wgpu::Queue, video_id: u64, bounds: &iced::Rectangle) {
+    pub(crate) fn prepare(&mut self, queue: &wgpu::Queue, video_id: u64, bounds: &iced::Rectangle) {
         if let Some(video) = self.videos.get_mut(&video_id) {
             let uniforms = Uniforms {
                 rect: [
@@ -347,7 +346,7 @@ impl VideoPipeline {
         }
     }
 
-    fn draw(
+    pub(crate) fn draw(
         &self,
         target: &wgpu::TextureView,
         encoder: &mut wgpu::CommandEncoder,
@@ -386,81 +385,5 @@ impl VideoPipeline {
             video.prepare_index.store(0, Ordering::Relaxed);
             video.render_index.fetch_add(1, Ordering::Relaxed);
         }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct VideoPrimitive {
-    video_id: u64,
-    alive: Arc<AtomicBool>,
-    frame: Arc<Mutex<Frame>>,
-    size: (u32, u32),
-    upload_frame: bool,
-}
-
-impl VideoPrimitive {
-    pub fn new(
-        video_id: u64,
-        alive: Arc<AtomicBool>,
-        frame: Arc<Mutex<Frame>>,
-        size: (u32, u32),
-        upload_frame: bool,
-    ) -> Self {
-        VideoPrimitive {
-            video_id,
-            alive,
-            frame,
-            size,
-            upload_frame,
-        }
-    }
-}
-
-impl Primitive for VideoPrimitive {
-    type Pipeline = VideoPipeline;
-
-    fn prepare(
-        &self,
-        pipeline: &mut VideoPipeline,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        bounds: &iced::Rectangle,
-        viewport: &iced_wgpu::graphics::Viewport,
-    ) {
-        if self.upload_frame {
-            let frame_guard = self.frame.lock().expect("lock frame mutex");
-            let stride = frame_guard.stride();
-            if let Some(readable) = frame_guard.readable() {
-                pipeline.upload(
-                    device,
-                    queue,
-                    self.video_id,
-                    &self.alive,
-                    self.size,
-                    readable.as_slice(),
-                    stride,
-                );
-            };
-        }
-
-        pipeline.prepare(
-            queue,
-            self.video_id,
-            &(*bounds
-                * iced::Transformation::orthographic(
-                    viewport.logical_size().width as _,
-                    viewport.logical_size().height as _,
-                )),
-        );
-    }
-
-    fn render(
-        &self,
-        pipeline: &Self::Pipeline,
-        encoder: &mut wgpu::CommandEncoder,
-        target: &wgpu::TextureView,
-        clip_bounds: &iced::Rectangle<u32>,
-    ) {
-        pipeline.draw(target, encoder, clip_bounds, self.video_id);
     }
 }

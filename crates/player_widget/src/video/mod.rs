@@ -1,205 +1,22 @@
+pub mod frame;
+pub mod internal;
+pub mod position;
+
+pub use frame::Frame;
+pub use internal::Internal;
+pub use position::Position;
+
 use crate::Error;
+use frame::yuv_to_rgba;
 use gstreamer as gst;
+use gstreamer::prelude::*;
 use gstreamer_app as gst_app;
-use gstreamer_app::prelude::*;
-use gstreamer_video::VideoMeta;
 use iced::widget::image as img;
 use std::num::NonZeroU8;
 use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
-
-/// Position in the media.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Position {
-    /// Position based on time.
-    ///
-    /// Not the most accurate format for videos.
-    Time(Duration),
-    /// Position based on nth frame.
-    Frame(u64),
-}
-
-impl From<Position> for gst::GenericFormattedValue {
-    fn from(pos: Position) -> Self {
-        match pos {
-            Position::Time(t) => gst::ClockTime::from_nseconds(t.as_nanos() as _).into(),
-            Position::Frame(f) => gst::format::Default::from_u64(f).into(),
-        }
-    }
-}
-
-impl From<Duration> for Position {
-    fn from(t: Duration) -> Self {
-        Position::Time(t)
-    }
-}
-
-impl From<u64> for Position {
-    fn from(f: u64) -> Self {
-        Position::Frame(f)
-    }
-}
-
-#[derive(Debug)]
-pub(crate) struct Frame(gst::Sample);
-
-impl Frame {
-    pub fn empty() -> Self {
-        Self(gst::Sample::builder().build())
-    }
-
-    pub fn readable(&self) -> Option<gst::BufferMap<'_, gst::buffer::Readable>> {
-        self.0.buffer().and_then(|x| x.map_readable().ok())
-    }
-
-    /// Get the Y-plane stride (line pitch) in bytes from the frame's VideoMeta.
-    /// This is critical for proper NV12 decoding, as the stride may differ from width.
-    pub fn stride(&self) -> Option<u32> {
-        self.0.buffer().and_then(|buffer| {
-            buffer
-                .meta::<VideoMeta>()
-                .map(|meta| meta.stride()[0] as u32)
-        })
-    }
-}
-
-#[derive(Debug)]
-pub(crate) struct Internal {
-    pub(crate) id: u64,
-
-    pub(crate) bus: gst::Bus,
-    pub(crate) source: gst::Pipeline,
-    pub(crate) alive: Arc<AtomicBool>,
-    pub(crate) worker: Option<std::thread::JoinHandle<()>>,
-
-    pub(crate) width: i32,
-    pub(crate) height: i32,
-    pub(crate) framerate: f64,
-    pub(crate) duration: Duration,
-    pub(crate) speed: f64,
-    pub(crate) sync_av: bool,
-
-    pub(crate) frame: Arc<Mutex<Frame>>,
-    pub(crate) upload_frame: Arc<AtomicBool>,
-    pub(crate) last_frame_time: Arc<Mutex<Instant>>,
-    pub(crate) looping: bool,
-    pub(crate) is_eos: bool,
-    pub(crate) restart_stream: bool,
-    pub(crate) sync_av_avg: u64,
-    pub(crate) sync_av_counter: u64,
-
-    pub(crate) subtitle_text: Arc<Mutex<Option<String>>>,
-    pub(crate) upload_text: Arc<AtomicBool>,
-}
-
-impl Internal {
-    pub(crate) fn seek(&self, position: impl Into<Position>, accurate: bool) -> Result<(), Error> {
-        let position = position.into();
-
-        // gstreamer complains if the start & end value types aren't the same
-        match &position {
-            Position::Time(_) => self.source.seek(
-                self.speed,
-                gst::SeekFlags::FLUSH
-                    | if accurate {
-                        gst::SeekFlags::ACCURATE
-                    } else {
-                        gst::SeekFlags::empty()
-                    },
-                gst::SeekType::Set,
-                gst::GenericFormattedValue::from(position),
-                gst::SeekType::Set,
-                gst::ClockTime::NONE,
-            )?,
-            Position::Frame(_) => self.source.seek(
-                self.speed,
-                gst::SeekFlags::FLUSH
-                    | if accurate {
-                        gst::SeekFlags::ACCURATE
-                    } else {
-                        gst::SeekFlags::empty()
-                    },
-                gst::SeekType::Set,
-                gst::GenericFormattedValue::from(position),
-                gst::SeekType::Set,
-                gst::format::Default::NONE,
-            )?,
-        };
-
-        *self.subtitle_text.lock().expect("lock subtitle_text") = None;
-        self.upload_text.store(true, Ordering::SeqCst);
-
-        Ok(())
-    }
-
-    pub(crate) fn set_speed(&mut self, speed: f64) -> Result<(), Error> {
-        let Some(position) = self.source.query_position::<gst::ClockTime>() else {
-            return Err(Error::Caps);
-        };
-        if speed > 0.0 {
-            self.source.seek(
-                speed,
-                gst::SeekFlags::FLUSH | gst::SeekFlags::ACCURATE,
-                gst::SeekType::Set,
-                position,
-                gst::SeekType::End,
-                gst::ClockTime::from_seconds(0),
-            )?;
-        } else {
-            self.source.seek(
-                speed,
-                gst::SeekFlags::FLUSH | gst::SeekFlags::ACCURATE,
-                gst::SeekType::Set,
-                gst::ClockTime::from_seconds(0),
-                gst::SeekType::Set,
-                position,
-            )?;
-        }
-        self.speed = speed;
-        Ok(())
-    }
-
-    pub(crate) fn restart_stream(&mut self) -> Result<(), Error> {
-        self.is_eos = false;
-        self.set_paused(false);
-        self.seek(0, false)?;
-        Ok(())
-    }
-
-    pub(crate) fn set_paused(&mut self, paused: bool) {
-        self.source
-            .set_state(if paused {
-                gst::State::Paused
-            } else {
-                gst::State::Playing
-            })
-            .unwrap(/* state was changed in ctor; state errors caught there */);
-
-        // Set restart_stream flag to make the stream restart on the next Message::NextFrame
-        if self.is_eos && !paused {
-            self.restart_stream = true;
-        }
-    }
-
-    pub(crate) fn paused(&self) -> bool {
-        self.source.state(gst::ClockTime::ZERO).1 == gst::State::Paused
-    }
-
-    /// Syncs audio with video when there is (inevitably) latency presenting the frame.
-    pub(crate) fn set_av_offset(&mut self, offset: Duration) {
-        if self.sync_av {
-            self.sync_av_counter += 1;
-            self.sync_av_avg = self.sync_av_avg * (self.sync_av_counter - 1) / self.sync_av_counter
-                + offset.as_nanos() as u64 / self.sync_av_counter;
-            if self.sync_av_counter % 128 == 0 {
-                self.source
-                    .set_property("av-offset", -(self.sync_av_avg as i64));
-            }
-        }
-    }
-}
 
 /// A multimedia video loaded from a URI (e.g., a local file path or HTTP stream).
 #[derive(Debug)]
@@ -641,47 +458,4 @@ impl Video {
 
         out
     }
-}
-
-fn yuv_to_rgba(
-    yuv: &[u8],
-    width: u32,
-    height: u32,
-    downscale: u32,
-    stride: Option<u32>,
-) -> Vec<u8> {
-    // Use stride from VideoMeta if available, otherwise assume stride == width
-    let stride = stride.unwrap_or(width);
-
-    let uv_start = stride * height;
-    let mut rgba = vec![];
-
-    for y in 0..height / downscale {
-        for x in 0..width / downscale {
-            let x_src = x * downscale;
-            let y_src = y * downscale;
-
-            // NV12 memory layout with stride:
-            // Y plane: stride bytes per row, starting at offset 0
-            // UV plane: stride bytes per row (same stride), starting at offset stride * height
-            // Each pixel is 1 byte Y, and every 2x2 block shares 2 bytes (U, V)
-            let y_offset = (y_src * stride + x_src) as usize;
-            let uv_offset = (uv_start + (y_src / 2) * stride + (x_src / 2) * 2) as usize;
-
-            let y = yuv[y_offset] as f32;
-            let u = yuv[uv_offset] as f32;
-            let v = yuv[uv_offset + 1] as f32;
-
-            let r = 1.164 * (y - 16.0) + 1.596 * (v - 128.0);
-            let g = 1.164 * (y - 16.0) - 0.813 * (v - 128.0) - 0.391 * (u - 128.0);
-            let b = 1.164 * (y - 16.0) + 2.018 * (u - 128.0);
-
-            rgba.push(r as u8);
-            rgba.push(g as u8);
-            rgba.push(b as u8);
-            rgba.push(0xFF);
-        }
-    }
-
-    rgba
 }

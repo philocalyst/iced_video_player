@@ -34,9 +34,9 @@
 //!
 //! You can programmatically control the video (e.g., seek, pause, loop, grab thumbnails) by accessing various methods on [`Video`].
 
-mod pipeline;
-mod video;
-mod video_player;
+pub mod pipeline;
+pub mod video;
+pub mod video_player;
 
 use gstreamer as gst;
 use thiserror::Error;
