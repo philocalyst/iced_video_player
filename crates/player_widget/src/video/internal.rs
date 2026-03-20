@@ -135,7 +135,7 @@ impl Internal {
             self.sync_av_counter += 1;
             self.sync_av_avg = self.sync_av_avg * (self.sync_av_counter - 1) / self.sync_av_counter
                 + offset.as_nanos() as u64 / self.sync_av_counter;
-            if self.sync_av_counter % 128 == 0 {
+            if self.sync_av_counter.is_multiple_of(128) {
                 self.source
                     .set_property("av-offset", -(self.sync_av_avg as i64));
             }
