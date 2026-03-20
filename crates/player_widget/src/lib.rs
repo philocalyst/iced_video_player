@@ -34,6 +34,8 @@
 //!
 //! You can programmatically control the video (e.g., seek, pause, loop, grab thumbnails) by accessing various methods on [`Video`].
 
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::type_complexity)]
 pub mod pipeline;
 pub mod player;
 pub mod video;
