@@ -73,17 +73,42 @@ impl Video {
         video_appsink.set_caps(Some(&caps));
 
         let video_bin = gst::Bin::builder().build();
-        video_bin.add_many([&videoscale, &videoconvert, video_appsink.upcast_ref()])?;
-        gst::Element::link_many([&videoscale, &videoconvert, video_appsink.upcast_ref()])?;
+
+        // Use hardware memory converter if available (VA-API on Intel/AMD, NVIDIA fallback)
+        let hw_converter = gst::ElementFactory::make("vapostproc")
+            .build()
+            .or_else(|_| gst::ElementFactory::make("vaapipostproc").build())
+            .or_else(|_| gst::ElementFactory::make("cudadownload").build())
+            .ok();
+
+        let first_element = if let Some(hw_converter) = hw_converter {
+            video_bin.add_many([
+                &hw_converter,
+                &videoconvert,
+                &videoscale,
+                video_appsink.upcast_ref(),
+            ])?;
+            gst::Element::link_many([
+                &hw_converter,
+                &videoconvert,
+                &videoscale,
+                video_appsink.upcast_ref(),
+            ])?;
+            hw_converter
+        } else {
+            video_bin.add_many([&videoconvert, &videoscale, video_appsink.upcast_ref()])?;
+            gst::Element::link_many([&videoconvert, &videoscale, video_appsink.upcast_ref()])?;
+            videoconvert.clone()
+        };
 
         // Ghost pad so playbin can treat the bin as a sink
-        let sink_pad = videoscale.static_pad("sink").ok_or(Error::Cast)?;
+        let sink_pad = first_element.static_pad("sink").ok_or(Error::Cast)?;
         let ghost_pad = gst::GhostPad::with_target(&sink_pad)?;
         ghost_pad.set_active(true)?;
         video_bin.add_pad(&ghost_pad)?;
 
         // Build playbin and wire up the sinks
-        let pipeline = gst::ElementFactory::make("playbin")
+        let pipeline = gst::ElementFactory::make("playbin3")
             .property("uri", uri.as_str())
             .property("text-sink", &text_sink)
             .property("video-sink", &video_bin)
