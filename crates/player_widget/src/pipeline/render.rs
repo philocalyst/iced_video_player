@@ -168,9 +168,15 @@ impl VideoPipeline {
         (width, height): (u32, u32),
         frame: &[u8],
         stride: Option<u32>,
+        offsets: Option<Vec<usize>>,
     ) {
         // Use stride from GStreamer's VideoMeta if available, otherwise assume stride == width
         let stride = stride.unwrap_or(width);
+        let uv_start = offsets
+            .as_ref()
+            .and_then(|o| o.get(1).copied())
+            .unwrap_or((stride * height) as usize);
+
         if let Entry::Vacant(entry) = self.videos.entry(video_id) {
             let texture_y = device.create_texture(&wgpu::TextureDescriptor {
                 label: Some("iced_video_player texture"),
@@ -285,7 +291,10 @@ impl VideoPipeline {
                 origin: wgpu::Origin3d::ZERO,
                 aspect: wgpu::TextureAspect::All,
             },
-            &frame[..(stride * height) as usize],
+            &frame[offsets
+                .as_ref()
+                .and_then(|o| o.get(0).copied())
+                .unwrap_or(0)..],
             wgpu::TexelCopyBufferLayout {
                 offset: 0,
                 bytes_per_row: Some(stride),
@@ -305,7 +314,7 @@ impl VideoPipeline {
                 origin: wgpu::Origin3d::ZERO,
                 aspect: wgpu::TextureAspect::All,
             },
-            &frame[(stride * height) as usize..],
+            &frame[uv_start..],
             wgpu::TexelCopyBufferLayout {
                 offset: 0,
                 bytes_per_row: Some(stride),

@@ -22,6 +22,15 @@ impl Frame {
                 .map(|meta| meta.stride()[0] as u32)
         })
     }
+
+    /// Get the plane offsets from the frame's VideoMeta.
+    pub fn offsets(&self) -> Option<Vec<usize>> {
+        self.0.buffer().and_then(|buffer| {
+            buffer
+                .meta::<VideoMeta>()
+                .map(|meta| meta.offset().to_vec())
+        })
+    }
 }
 
 pub(crate) fn yuv_to_rgba(

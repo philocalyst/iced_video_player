@@ -25,3 +25,4 @@ glib.workspace = true
 log.workspace = true
 thiserror.workspace = true
 url.workspace = true
+tracing = "0.1.44"

@@ -5,6 +5,7 @@ pub mod position;
 pub use frame::Frame;
 pub use internal::Internal;
 pub use position::Position;
+use tracing::info;
 
 use crate::Error;
 use frame::yuv_to_rgba;
@@ -32,12 +33,12 @@ impl Drop for Video {
             .expect("failed to set state");
 
         inner.alive.store(false, Ordering::SeqCst);
-        if let Some(worker) = inner.worker.take() {
-            if let Err(err) = worker.join() {
-                match err.downcast_ref::<String>() {
-                    Some(e) => log::error!("Video thread panicked: {e}"),
-                    None => log::error!("Video thread panicked with unknown reason"),
-                }
+        if let Some(worker) = inner.worker.take()
+            && let Err(err) = worker.join()
+        {
+            match err.downcast_ref::<String>() {
+                Some(e) => log::error!("Video thread panicked: {e}"),
+                None => log::error!("Video thread panicked with unknown reason"),
             }
         }
     }
@@ -47,10 +48,11 @@ impl Video {
     /// Create a new video player from a given video which loads from `uri`.
     /// Note that live sources will report the duration to be zero.
     pub fn new(uri: &url::Url) -> Result<Self, Error> {
+        info!("Began creating video widget");
         gst::init()?;
 
         let pipeline = format!(
-            "playbin uri=\"{}\" text-sink=\"appsink name=iced_text sync=true drop=true\" video-sink=\"videoscale ! videoconvert ! appsink name=iced_video drop=true caps=video/x-raw,format=NV12,pixel-aspect-ratio=1/1\"",
+            "playbin uri=\"{}\" text-sink=\"appsink name=iced_text sync=true drop=true\" video-sink=\"videoscale ! videoconvert ! appsink name=iced_video drop=true\"",
             uri.as_str()
         );
         let pipeline = gst::parse::launch(pipeline.as_ref())?
@@ -67,6 +69,12 @@ impl Video {
             .unwrap();
         let video_sink = bin.by_name("iced_video").unwrap();
         let video_sink = video_sink.downcast::<gst_app::AppSink>().unwrap();
+
+        let caps = gst::Caps::builder("video/x-raw")
+            .field("format", "NV12")
+            .field("pixel-aspect-ratio", gst::Fraction::new(1, 1))
+            .build();
+        video_sink.set_caps(Some(&caps));
 
         let text_sink: gst::Element = pipeline.property("text-sink");
         let text_sink = text_sink.downcast::<gst_app::AppSink>().unwrap();
@@ -107,16 +115,19 @@ impl Video {
         cleanup!(pipeline.set_state(gst::State::Playing))?;
 
         // wait for up to 5 seconds until the decoder gets the source capabilities
-        cleanup!(pipeline.state(gst::ClockTime::from_seconds(5)).0)?;
+        let (res, _current, _pending) = pipeline.state(gst::ClockTime::from_seconds(5));
+        cleanup!(res)?;
 
         // extract resolution and framerate
         // TODO(jazzfool): maybe we want to extract some other information too?
+        info!("Begun resolution extraction");
         let caps = cleanup!(pad.current_caps().ok_or(Error::Caps))?;
         let s = cleanup!(caps.structure(0).ok_or(Error::Caps))?;
         let width = cleanup!(s.get::<i32>("width").map_err(|_| Error::Caps))?;
         let height = cleanup!(s.get::<i32>("height").map_err(|_| Error::Caps))?;
         let framerate = cleanup!(s.get::<gst::Fraction>("framerate").map_err(|_| Error::Caps))?;
         let framerate = framerate.numer() as f64 / framerate.denom() as f64;
+        info!("Ended resolution extraction");
 
         if framerate.is_nan()
             || framerate.is_infinite()
@@ -158,17 +169,17 @@ impl Video {
             let mut clear_subtitles_at = None;
 
             while alive_ref.load(Ordering::Acquire) {
-                if let Err(gst::FlowError::Error) = (|| -> Result<(), gst::FlowError> {
+                if let Err(err) = (|| -> Result<(), gst::FlowError> {
                     let sample =
                         if pipeline_ref.state(gst::ClockTime::ZERO).1 != gst::State::Playing {
-                            video_sink
-                                .try_pull_preroll(gst::ClockTime::from_mseconds(16))
-                                .ok_or(gst::FlowError::Eos)?
+                            video_sink.try_pull_preroll(gst::ClockTime::from_mseconds(100))
                         } else {
-                            video_sink
-                                .try_pull_sample(gst::ClockTime::from_mseconds(16))
-                                .ok_or(gst::FlowError::Eos)?
+                            video_sink.try_pull_sample(gst::ClockTime::from_mseconds(100))
                         };
+
+                    let Some(sample) = sample else {
+                        return Ok(());
+                    };
 
                     *last_frame_time_ref
                         .lock()
@@ -186,14 +197,14 @@ impl Video {
 
                     upload_frame_ref.swap(true, Ordering::SeqCst);
 
-                    if let Some(at) = clear_subtitles_at {
-                        if frame_pts >= at {
-                            *subtitle_text_ref
-                                .lock()
-                                .map_err(|_| gst::FlowError::Error)? = None;
-                            upload_text_ref.store(true, Ordering::SeqCst);
-                            clear_subtitles_at = None;
-                        }
+                    if let Some(at) = clear_subtitles_at
+                        && frame_pts >= at
+                    {
+                        *subtitle_text_ref
+                            .lock()
+                            .map_err(|_| gst::FlowError::Error)? = None;
+                        upload_text_ref.store(true, Ordering::SeqCst);
+                        clear_subtitles_at = None;
                     }
 
                     let text = text_sink
@@ -237,7 +248,9 @@ impl Video {
 
                     Ok(())
                 })() {
-                    log::error!("error pulling frame");
+                    if !matches!(err, gst::FlowError::Eos) {
+                        log::error!("error pulling frame: {:?}", err);
+                    }
                 }
             }
         });

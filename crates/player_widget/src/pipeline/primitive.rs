@@ -45,6 +45,7 @@ impl Primitive for VideoPrimitive {
         if self.upload_frame {
             let frame_guard = self.frame.lock().expect("lock frame mutex");
             let stride = frame_guard.stride();
+            let offsets = frame_guard.offsets();
             if let Some(readable) = frame_guard.readable() {
                 pipeline.upload(
                     device,
@@ -54,6 +55,7 @@ impl Primitive for VideoPrimitive {
                     self.size,
                     readable.as_slice(),
                     stride,
+                    offsets,
                 );
             };
         }

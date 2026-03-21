@@ -144,34 +144,42 @@
           );
         in
         {
+
           default = pkgs.mkShell {
             env.RUSTFLAGS = "-C link-arg=-Wl,-rpath,${libpath}";
             packages = with pkgs; [
+            
               rust-nightly # Rust nightly toolchain
               pkg-config # Nicer pkg-config
               gcc
 
               # GSTRREAMER STUFF
-              glib
-              glib.dev
-              gst_all_1.gstreamer
-              gst_all_1.gst-plugins-base
-              gst_all_1.gst-plugins-good
-              gst_all_1.gst-plugins-bad
+              pkgs.glib
+              pkgs.gst_all_1.gstreamer
+              pkgs.gst_all_1.gstreamer.dev
+              pkgs.gst_all_1.gst-plugins-base
+              pkgs.gst_all_1.gst-plugins-good
+              pkgs.gst_all_1.gst-plugins-bad
+              pkgs.gst_all_1.gst-plugins-ugly
+              pkgs.gst_all_1.gst-libav
 
-              cargo-bump # Bump crate versions
-              rust-analyzer # Rust LSP server
-              flock # For managing shell concurrency
-              nixfmt # Nix formatter
-              tombi # TOML formatter/linter
-              typos # Source code spell checker
-              hongdown # Markdown formatting
-              marksman # Markdown LSP server
-              taplo # TOML LSP/formatter
-              cargo-nextest # Next-gen test runner
-              nixd # Nix LSP server
-              dotacat # Colorful terminal output
-              cuelsp
+              pkgs.cargo-bump # Bump crate versions
+              pkgs.kittysay # say? kitty
+              pkgs.rust-analyzer # Rust LSP server
+              pkgs.flock # For managing shell concurrency
+              pkgs.nixfmt # Nix formatter
+              pkgs.tombi # TOML formatter/linter
+              pkgs.typos # Source code spell checker
+              pkgs.hongdown # Markdown formatting
+              pkgs.marksman # Markdown LSP server
+              pkgs.taplo # TOML LSP/formatter
+              pkgs.cargo-nextest # Next-gen test runner
+              pkgs.nixd # Nix LSP server
+              pkgs.dotacat # Colorful terminal output
+              pkgs.cuelsp
+              (if pkgs.stdenv.isLinux then pkgs.wild-unwrapped else null) # Fast linker (RUST), only works with clang for now
+              (if pkgs.stdenv.isLinux then pkgs.openssl else null) # Fast linker (RUST), only works with clang for now
+              (if pkgs.stdenv.isLinux then pkgs.clang else null)
             ];
           };
         }
