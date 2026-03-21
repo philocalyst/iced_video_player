@@ -51,35 +51,47 @@ impl Video {
         info!("Began creating video widget");
         gst::init()?;
 
-        let pipeline = format!(
-            "playbin uri=\"{}\" text-sink=\"appsink name=iced_text sync=true drop=true\" video-sink=\"videoscale ! videoconvert ! appsink name=iced_video drop=true\"",
-            uri.as_str()
-        );
-        let pipeline = gst::parse::launch(pipeline.as_ref())?
-            .downcast::<gst::Pipeline>()
-            .map_err(|_| Error::Cast)?;
+        // Build the text sink
+        let text_sink = gst_app::AppSink::builder()
+            .name("iced_text")
+            .sync(true)
+            .drop(true)
+            .build();
 
-        let video_sink: gst::Element = pipeline.property("video-sink");
-        let pad = video_sink.pads().first().cloned().unwrap();
-        let pad = pad.dynamic_cast::<gst::GhostPad>().unwrap();
-        let bin = pad
-            .parent_element()
-            .unwrap()
-            .downcast::<gst::Bin>()
-            .unwrap();
-        let video_sink = bin.by_name("iced_video").unwrap();
-        let video_sink = video_sink.downcast::<gst_app::AppSink>().unwrap();
+        // Build the video processing bin
+        let videoscale = gst::ElementFactory::make("videoscale").build()?;
+        let videoconvert = gst::ElementFactory::make("videoconvert").build()?;
+        let video_appsink = gst_app::AppSink::builder()
+            .name("iced_video")
+            .drop(true)
+            .build();
 
         let caps = gst::Caps::builder("video/x-raw")
             .field("format", "NV12")
             .field("pixel-aspect-ratio", gst::Fraction::new(1, 1))
             .build();
-        video_sink.set_caps(Some(&caps));
+        video_appsink.set_caps(Some(&caps));
 
-        let text_sink: gst::Element = pipeline.property("text-sink");
-        let text_sink = text_sink.downcast::<gst_app::AppSink>().unwrap();
+        let video_bin = gst::Bin::builder().build();
+        video_bin.add_many([&videoscale, &videoconvert, video_appsink.upcast_ref()])?;
+        gst::Element::link_many([&videoscale, &videoconvert, video_appsink.upcast_ref()])?;
 
-        Self::from_gst_pipeline(pipeline, video_sink, Some(text_sink))
+        // Ghost pad so playbin can treat the bin as a sink
+        let sink_pad = videoscale.static_pad("sink").ok_or(Error::Cast)?;
+        let ghost_pad = gst::GhostPad::with_target(&sink_pad)?;
+        ghost_pad.set_active(true)?;
+        video_bin.add_pad(&ghost_pad)?;
+
+        // Build playbin and wire up the sinks
+        let pipeline = gst::ElementFactory::make("playbin")
+            .property("uri", uri.as_str())
+            .property("text-sink", &text_sink)
+            .property("video-sink", &video_bin)
+            .build()?
+            .downcast::<gst::Pipeline>()
+            .map_err(|_| Error::Cast)?;
+
+        Self::from_gst_pipeline(pipeline, video_appsink, Some(text_sink))
     }
 
     /// Creates a new video based on an existing GStreamer pipeline and appsink.
