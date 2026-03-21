@@ -133,9 +133,15 @@ impl Internal {
     pub(crate) fn set_av_offset(&mut self, offset: Duration) {
         if self.sync_av {
             self.sync_av_counter += 1;
-            self.sync_av_avg = self.sync_av_avg * (self.sync_av_counter - 1) / self.sync_av_counter
-                + offset.as_nanos() as u64 / self.sync_av_counter;
-            if self.sync_av_counter.is_multiple_of(128) {
+            let offset_nanos = u64::try_from(offset.as_nanos()).unwrap_or(u64::MAX);
+
+            const ALPHA_NUM: u64 = 1;
+            const ALPHA_DEN: u64 = 20;
+            self.sync_av_avg =
+                (self.sync_av_avg * (ALPHA_DEN - ALPHA_NUM) + offset_nanos * ALPHA_NUM) / ALPHA_DEN;
+
+            // Handle at startup, or every 128 frames
+            if self.sync_av_counter == 1 || self.sync_av_counter.is_multiple_of(128) {
                 self.source
                     .set_property("av-offset", -(self.sync_av_avg as i64));
             }
