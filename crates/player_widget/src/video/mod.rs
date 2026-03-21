@@ -122,8 +122,6 @@ impl Video {
             };
         }
 
-        let pad = video_sink.pads().first().cloned().unwrap();
-
         cleanup!(pipeline.set_state(gst::State::Playing))?;
 
         // wait for up to 5 seconds until the decoder gets the source capabilities
@@ -133,7 +131,13 @@ impl Video {
         // extract resolution and framerate
         // TODO(jazzfool): maybe we want to extract some other information too?
         info!("Begun resolution extraction");
-        let caps = cleanup!(pad.current_caps().ok_or(Error::Caps))?;
+        let caps = cleanup!(
+            video_sink
+                .static_pad("sink")
+                .ok_or(Error::Cast)?
+                .current_caps()
+                .ok_or(Error::Caps)
+        )?;
         let s = cleanup!(caps.structure(0).ok_or(Error::Caps))?;
         let width = cleanup!(s.get::<i32>("width").map_err(|_| Error::Caps))?;
         let height = cleanup!(s.get::<i32>("height").map_err(|_| Error::Caps))?;
@@ -157,7 +161,7 @@ impl Video {
                 .unwrap_or(0),
         );
 
-        let sync_av = pipeline.has_property("av-offset", None);
+        let sync_av = pipeline.has_property("av-offset", Some(i64::static_type()));
 
         // NV12 = 12bpp
         let frame = Arc::new(Mutex::new(Frame::empty()));
