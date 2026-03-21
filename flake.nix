@@ -12,11 +12,6 @@
       url = "github:cachix/git-hooks.nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
-    devshell = {
-      url = "github:numtide/devshell";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
   outputs =
     {
@@ -24,7 +19,6 @@
       nixpkgs,
       fenix,
       git-hooks,
-      devshell,
     }:
     let
       # Everything that Nix supports right now
@@ -136,28 +130,28 @@
             inherit name help category;
             command = "cd $PRJ_ROOT && nu .config/scripts/${name}.nu \"$@\"";
           };
+          libpath = pkgs.lib.makeLibraryPath (
+            with pkgs;
+            [
+              wayland
+              glib
+              gst_all_1.gstreamer
+              gst_all_1.gst-plugins-base
+              gst_all_1.gst-plugins-good
+              gst_all_1.gst-plugins-bad
+              libxkbcommon
+            ]
+          );
         in
         {
-          default = (devshell.legacyPackages.${system}.mkShell) {
-            name = "NuNuShell";
 
-            env = [
-              {
-                name = "PKG_CONFIG_PATH";
-                value = "${pkgs.glib.dev}/lib/pkgconfig:${pkgs.gst_all_1.gstreamer.dev}/lib/pkgconfig:${pkgs.gst_all_1.gst-plugins-base.dev}/lib/pkgconfig";
-              }
-              {
-                name = "GST_PLUGIN_SYSTEM_PATH_1_0";
-                value = "${pkgs.gst_all_1.gstreamer.out}/lib/gstreamer-1.0:${pkgs.gst_all_1.gst-plugins-base}/lib/gstreamer-1.0:${pkgs.gst_all_1.gst-plugins-good}/lib/gstreamer-1.0";
-              }
-            ];
-            motd = ''
-              $($(type -p kittysay) --think "hello... james..." | dotacat)
-            '';
-
-            packages = builtins.filter (x: x != null) [
+          default = pkgs.mkShell {
+            env.RUSTFLAGS = "-C link-arg=-Wl,-rpath,${libpath}";
+            packages = with pkgs; [
+            
               rust-nightly # Rust nightly toolchain
-              pkgs.pkg-config # Nicer pkg-config
+              pkg-config # Nicer pkg-config
+              gcc
 
               # GSTRREAMER STUFF
               pkgs.glib
@@ -187,17 +181,6 @@
               (if pkgs.stdenv.isLinux then pkgs.openssl else null) # Fast linker (RUST), only works with clang for now
               (if pkgs.stdenv.isLinux then pkgs.clang else null)
             ];
-            devshell.startup.shellHook.text = ''
-              export RUST_TARGET=$(rustc --version --verbose | grep '^host:' | awk '{print $2}')
-              ${hooks.shellHook}
-              (
-                # Use a lockfile to prevent multiple instances from stomping on Git
-                flock -n 9 || exit 1
-
-                git fetch
-
-              ) 9>/tmp/nunu_sync.lock &
-            '';
           };
         }
       );
