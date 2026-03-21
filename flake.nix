@@ -133,7 +133,7 @@
           libpath = pkgs.lib.makeLibraryPath (
             with pkgs;
             [
-              wayland
+              (if pkgs.stdenv.isLinux then wayland else null)
               glib
               gst_all_1.gstreamer
               gst_all_1.gst-plugins-base
@@ -148,7 +148,7 @@
           default = pkgs.mkShell {
             env.RUSTFLAGS = "-C link-arg=-Wl,-rpath,${libpath}";
             packages = with pkgs; [
-            
+
               rust-nightly # Rust nightly toolchain
               pkg-config # Nicer pkg-config
               gcc
